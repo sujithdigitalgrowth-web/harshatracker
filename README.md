@@ -10,7 +10,16 @@ Open `index.html` in a browser. No build step.
 
 ## Tabs
 
-- **Today**: deadlines this week (late ones in red) and how long since you last checked each client.
-- **Clients**: grouped by agency, most neglected first. Each client page holds its notes, deadlines, links and logins.
+- **Today**: a note box, a "needs your attention" list (late deadlines and clients you haven't checked in time), the week with arrows to move between weeks, and your recent notes.
+- **Clients**: grouped by agency. Each client page has a note box, the notes history (filter by changes, notes or calls), deadlines, links and logins.
 - **Links**: every sheet, report and folder, mapped to a client.
 - **Logins**: email IDs and passwords, grouped by client.
+
+## Shortcuts
+
+- `/` search
+- `N` new note
+- `Ctrl + Enter` save the note you're typing
+- `Esc` close a window or clear search
+
+Deleting anything shows an **Undo** button for a few seconds.
