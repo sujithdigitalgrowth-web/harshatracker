@@ -36,7 +36,7 @@ const DAYS = 30;
 
 // Changing APP_PASSWORD (or SESSION_SECRET) signs every device out.
 function key() {
-  const p = process.env.APP_PASSWORD;
+  const p = (process.env.APP_PASSWORD || "").trim();
   if (!p) return null;
   return crypto.createHash("sha256").update(`ht-session:${p}:${process.env.SESSION_SECRET || ""}`).digest();
 }
@@ -59,10 +59,11 @@ export function isAuthed(req) {
   return good.length === sig.length && crypto.timingSafeEqual(Buffer.from(good), Buffer.from(sig));
 }
 
+// Trimmed on both sides: a space or line break pasted into Vercel shouldn't lock you out.
 export function passwordOk(input) {
-  const p = process.env.APP_PASSWORD || "";
+  const p = (process.env.APP_PASSWORD || "").trim();
   const h = (s) => crypto.createHash("sha256").update(String(s ?? "")).digest();
-  return p.length > 0 && crypto.timingSafeEqual(h(input), h(p));
+  return p.length > 0 && crypto.timingSafeEqual(h(String(input ?? "").trim()), h(p));
 }
 
 export function readBody(req) {

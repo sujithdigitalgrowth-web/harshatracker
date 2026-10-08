@@ -653,14 +653,19 @@ function load(data){for(const k of KINDS_LIST)S[k]=Array.isArray(data[k])?data[k
 async function boot(){
   $("view").innerHTML=`<div class="empty">Loading your tracker…</div>`;
   let r=null;try{r=await fetch("/api/data",{cache:"no-store"})}catch(_){}
-  if(r&&r.status===401){MODE="live";showLogin();return}
-  if(r&&r.ok&&(r.headers.get("content-type")||"").includes("json")){MODE="live";load(await r.json());return}
-  if(r&&r.status>=500){$("view").innerHTML=`<div class="panel">${empty("Couldn't load your data","The server or database didn't respond. Reload the page to try again.")}</div>`;return}
-  MODE="preview";$("banner").hidden=false;load(sampleData())}
+  if(r&&r.status===401){MODE="live";showLogin();return "login"}
+  if(r&&r.ok&&(r.headers.get("content-type")||"").includes("json")){MODE="live";load(await r.json());return "app"}
+  if(r&&r.status>=500){MODE="live";const msg=(await r.json().catch(()=>({}))).error||"The server didn't respond.";
+    showApp();$("view").innerHTML=`<div class="panel">${empty("Couldn't load your data",esc(msg)+" Reload the page to try again. If it keeps happening, check the database is connected to this project in Vercel → Storage.")}</div>`;return "error"}
+  MODE="preview";$("banner").hidden=false;load(sampleData());return "app"}
 async function signIn(form,password){
   const btn=form.querySelector("button"),err=$("login-err");btn.disabled=true;err.textContent="";
   try{const r=await fetch("/api/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password})});
-    if(r.ok){form.reset();if(saved){showApp();render();persist()}else boot()}
+    if(r.ok){
+      if(saved){form.reset();showApp();render();persist();return}
+      const next=await boot();
+      if(next==="login")err.textContent="The password was right, but this browser didn't keep you signed in. Allow cookies for this site (or turn off strict tracking protection for it) and try again.";
+      else form.reset()}
     else err.textContent=(await r.json().catch(()=>({}))).error||"That password is wrong."}
   catch(_){err.textContent="Couldn't reach the server. Check your connection and try again."}
   finally{btn.disabled=false}}
