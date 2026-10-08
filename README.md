@@ -2,11 +2,25 @@
 
 A personal dashboard for keeping track of every client: notes and changes, when each client was last checked, deadlines, links (sheets, reports, folders) and logins.
 
-**Status:** front-end preview. It runs on sample data held in the page, so anything you add is gone on reload. Saving is the next step.
+Live at https://harshatracker.vercel.app (sign-in required).
 
-## Open it
+## How it's built
 
-Open `index.html` in a browser. No build step.
+- `index.html`: the whole page. No build step.
+- `api/login.js`: checks the password and sets a 30-day sign-in cookie.
+- `api/data.js`: loads and saves everything. The page saves on its own after each change.
+- Data lives in a Neon Postgres database (one `items` table, created on first use).
+
+## Settings in Vercel
+
+| Variable | What it's for |
+|---|---|
+| `DATABASE_URL` | Added by Vercel when the Neon database is connected |
+| `APP_PASSWORD` | The password you sign in with. Changing it signs every device out |
+
+Never commit these values. `.env*` files are ignored.
+
+Opened without its server (for example as a local file), the page shows sample data instead.
 
 ## Tabs
 

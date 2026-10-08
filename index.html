@@ -227,6 +227,21 @@ mark{background:#FFF0A8;color:inherit;border-radius:2px;padding:0 1px}
 .toast button:hover{background:rgba(255,255,255,.1)}
 .toast span:only-child{padding-right:8px}
 
+/* ---------- login & save status ---------- */
+.login-screen{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--soft)}
+.login-card{background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:32px 28px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 60px rgba(16,24,40,.08)}
+.login-card .logo{width:44px;height:44px;font-size:20px;border-radius:12px}
+.login-card h1{font-size:24px}
+.login-card .btn{justify-content:center;min-height:44px}
+.err{color:var(--bad);font-size:13px;margin:0;min-height:1em}
+.save{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.save.error{color:var(--bad)}
+.save button{all:unset;cursor:pointer;color:var(--accent);font-weight:600}
+.signout{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:6px 10px;border-radius:7px;margin-top:auto}
+.signout:hover{background:var(--soft);color:var(--ink)}
+.welcome{border:1px dashed var(--accent-line);background:var(--accent-soft);border-radius:var(--r);padding:28px;display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.welcome ol{margin:0;padding-left:20px;color:var(--ink);display:flex;flex-direction:column;gap:4px}
+
 /* ---------- phone ---------- */
 .tabbar{display:none}
 @media (max-width:900px){
@@ -249,14 +264,23 @@ mark{background:#FFF0A8;color:inherit;border-radius:2px;padding:0 1px}
 </head>
 <body>
 
-<div class="preview">Preview with sample data. Nothing is saved yet.</div>
-<div class="app">
+<div class="login-screen" id="login" hidden>
+  <form class="login-card" data-form="signin" autocomplete="on">
+    <span class="logo">H</span>
+    <div><h1>Harsha Tracker</h1><p class="lead" id="login-msg">Sign in to see your clients.</p></div>
+    <div class="f"><label for="pw">Password</label><input class="field" id="pw" name="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn pri">Sign in</button>
+    <p class="err" id="login-err" role="alert"></p>
+  </form>
+</div>
+<div class="preview" id="banner" hidden>Preview with sample data. Nothing is saved.</div>
+<div class="app" id="app">
   <aside class="side" id="side"></aside>
   <div class="main">
     <div class="top">
       <label class="search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         <input id="q" type="search" placeholder="Search clients, notes, links, emails" aria-label="Search" autocomplete="off"><span class="kbd">/</span></label>
-      <span class="sp"></span>
+      <span class="sp"></span><span class="save" id="save" aria-live="polite"></span>
       <button class="btn hide-sm" data-act="new-deadline">+ Deadline</button>
       <button class="btn pri" data-act="new-note">+ Note <span class="kbd hide-sm" style="background:transparent;color:#DCE6FB;border-color:rgba(255,255,255,.35)">N</span></button>
     </div>
@@ -299,11 +323,14 @@ function countdown(s){if(!s)return["No date",""];const n=diff(s);if(n<0)return[(
 const safeUrl=u=>{u=String(u||"").trim();if(!u)return"";if(!/^https?:\/\//i.test(u))u="https://"+u;return u};
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,"")}catch(_){return u}};
 const byId=(a,id)=>a.find(x=>x.id===id);
-let nid=1;const newId=()=>"n"+(nid++);
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const d=n=>addDays(t0,n);
 
-/* ---------- sample data (in memory only) ---------- */
+/* ---------- state ---------- */
 const S={view:"today",clientId:null,q:"",day:null,week:0,filter:"all",
+  agencies:[],clients:[],updates:[],deadlines:[],links:[],logins:[]};
+/* shown only when the page runs without its server (e.g. the claude.ai preview) */
+const sampleData=()=>({
   agencies:[{id:"a1",name:"MGC"},{id:"a2",name:"Northwind Media"}],
   clients:[
     {id:"c1",agencyId:"a1",name:"Kaveri Foods",platforms:["Google Ads","Meta"],every:3},
@@ -341,7 +368,7 @@ const S={view:"today",clientId:null,q:"",day:null,week:0,filter:"all",
     {id:"g2",clientId:"c1",user:"ads@kaverifoods.in",pw:"gads@2026"},
     {id:"g3",clientId:"c2",user:"harsha@lumaskin.com",pw:"luma@2026"},
     {id:"g4",clientId:"c4",user:"harsha.sona@gmail.com",pw:"sona@2026"},
-    {id:"g5",clientId:"",user:"harsha.mgc@gmail.com",pw:"mgc@2026"}]};
+    {id:"g5",clientId:"",user:"harsha.mgc@gmail.com",pw:"mgc@2026"}]});
 
 /* ---------- derived ---------- */
 const clientName=id=>byId(S.clients,id)?.name||"";
@@ -391,6 +418,10 @@ function composer(cid){
 /* ---------- views ---------- */
 function vToday(){
   const h=new Date().getHours(),greet=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  if(!S.clients.length)return `<div class="hello"><div><h1>${greet}, Harsha</h1><p class="lead">${new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</p></div></div>
+  <div class="welcome"><h2 style="font-size:20px">Let's set up your tracker</h2>
+  <ol><li>Add the agencies you work through, like MGC.</li><li>Add the clients you handle under each one (or as direct clients).</li><li>Then save notes, deadlines, links and logins for each client.</li></ol>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="new-agency">+ Add an agency</button><button class="btn" data-act="new-client">+ Add a client</button></div></div>`;
   const lt=late(),st=stale(),o=open();
   const attention=lt.map(t=>({kind:"late",t})).concat(st.map(c=>({kind:"stale",c})));
   const attHtml=attention.length?`<div class="list">${attention.map(a=>{
@@ -496,9 +527,11 @@ function render(){
   <nav class="nav" aria-label="Sections">${items.map(([k,l,n])=>`<button class="nb ${cur===k?"on":""}" data-act="nav" data-v="${k}" ${cur===k?'aria-current="page"':""}>${ICON[k]}${l}${n}</button>`).join("")}</nav>
   <div class="tree"><div class="tree-h"><span>Your clients</span><button class="icon-btn" data-act="new-client" aria-label="Add client">+</button></div>
   ${agencyGroups().filter(a=>a.clients.length).map(a=>`<div class="ag"><div class="ag-n">${esc(a.name)}</div>${a.clients.map(c=>{const f=freshness(c);
-    return `<button class="cb ${S.view==="client"&&S.clientId===c.id&&!S.q?"on":""}" data-act="client" data-id="${c.id}"><span class="dot ${f.cls}"></span><span class="nm">${esc(c.name)}</span><span class="ago ${f.cls==="ok"?"":f.cls}">${agoShort(f.days)}</span></button>`}).join("")}</div>`).join("")}</div>`;
+    return `<button class="cb ${S.view==="client"&&S.clientId===c.id&&!S.q?"on":""}" data-act="client" data-id="${c.id}"><span class="dot ${f.cls}"></span><span class="nm">${esc(c.name)}</span><span class="ago ${f.cls==="ok"?"":f.cls}">${agoShort(f.days)}</span></button>`}).join("")}</div>`).join("")}</div>
+  ${MODE==="live"?`<button class="signout" data-act="logout">Sign out</button>`:""}`;
   document.getElementById("tabbar").innerHTML=items.map(([k,l])=>`<button class="${cur===k?"on":""}" data-act="nav" data-v="${k}">${ICON[k]}${l}</button>`).join("");
-  document.getElementById("view").innerHTML=S.q?vSearch():S.view==="clients"?vClients():S.view==="client"?vClient():S.view==="links"?vLinks():S.view==="logins"?vLogins():vToday()}
+  document.getElementById("view").innerHTML=S.q?vSearch():S.view==="clients"?vClients():S.view==="client"?vClient():S.view==="links"?vLinks():S.view==="logins"?vLogins():vToday();
+  schedulePersist()}
 
 /* ---------- modals ---------- */
 let M=null;
@@ -551,6 +584,7 @@ function go(v,id){S.view=v;S.clientId=id||null;S.q="";q.value="";if(v!=="client"
 document.addEventListener("submit",e=>{
   const f=e.target.closest("form[data-form]");if(!f)return;e.preventDefault();
   const fd=new FormData(f),g=k=>String(fd.get(k)??"").trim(),kind=f.dataset.form;
+  if(kind==="signin"){signIn(f,fd.get("password"));return}
   const upsert=(k,data,msg)=>{const ex=M&&M.id&&byId(S[k],M.id);if(ex)Object.assign(ex,data);else S[k].push({id:newId(),...data});closeModal();toast(ex?"Saved":msg);return ex};
   if(kind==="note"){const cid=f.dataset.cid||g("clientId");S.updates.push({id:newId(),clientId:cid,kind:g("kind")||"note",date:t0,text:g("text")});toast("Note saved to "+clientName(cid));}
   if(kind==="note-modal")upsert("updates",{clientId:g("clientId"),kind:g("kind")||"note",text:g("text"),date:g("date")||t0},"Note saved to "+clientName(g("clientId")));
@@ -596,9 +630,12 @@ document.addEventListener("click",async e=>{
     if(k==="agencies")S.clients.forEach(c=>{if(c.agencyId===id)c.agencyId=""});
     closeModal();if(k==="clients"&&S.clientId===id){S.view="clients";S.clientId=null}
     toast(name+" deleted",snap);render()}
+  else if(a==="logout"){try{await fetch("/api/login",{method:"DELETE"})}catch(_){}location.reload()}
+  else if(a==="retry-save")persist();
   else if(a==="undo"&&undoSnap){Object.assign(S,undoSnap);undoSnap=null;document.getElementById("toast").innerHTML="";render()}
 });
 document.addEventListener("keydown",e=>{
+  if(document.getElementById("app").hidden)return;
   const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"");
   if(e.key==="Escape"){if(M||document.querySelector("#modal .overlay"))closeModal();else if(S.q){S.q="";q.value="";render()}else if(typing)document.activeElement.blur()}
   else if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){const f=document.activeElement?.closest("form");if(f){e.preventDefault();f.requestSubmit()}}
@@ -606,7 +643,48 @@ document.addEventListener("keydown",e=>{
     if(e.key==="/"){e.preventDefault();q.focus()}
     else if(e.key==="n"||e.key==="N"){e.preventDefault();noteForm({clientId:S.view==="client"?S.clientId:""})}}
 });
-render();
-</script>
-</body>
+/* ---------- loading & saving ---------- */
+const KINDS_LIST=["agencies","clients","updates","deadlines","links","logins"];
+let MODE="loading",saved=null,saving=false,again=false,persistT=null;
+const $=id=>document.getElementById(id);
+function showApp(){$("login").hidden=true;$("app").hidden=false}
+function showLogin(msg){$("app").hidden=true;$("login").hidden=false;$("login-msg").textContent=msg||"Sign in to see your clients.";$("login-err").textContent="";setTimeout(()=>$("pw").focus(),30)}
+function load(data){for(const k of KINDS_LIST)S[k]=Array.isArray(data[k])?data[k]:[];saved=snapshot();showApp();render()}
+async function boot(){
+  $("view").innerHTML=`<div class="empty">Loading your tracker…</div>`;
+  let r=null;try{r=await fetch("/api/data",{cache:"no-store"})}catch(_){}
+  if(r&&r.status===401){MODE="live";showLogin();return}
+  if(r&&r.ok&&(r.headers.get("content-type")||"").includes("json")){MODE="live";load(await r.json());return}
+  if(r&&r.status>=500){$("view").innerHTML=`<div class="panel">${empty("Couldn't load your data","The server or database didn't respond. Reload the page to try again.")}</div>`;return}
+  MODE="preview";$("banner").hidden=false;load(sampleData())}
+async function signIn(form,password){
+  const btn=form.querySelector("button"),err=$("login-err");btn.disabled=true;err.textContent="";
+  try{const r=await fetch("/api/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password})});
+    if(r.ok){form.reset();if(saved){showApp();render();persist()}else boot()}
+    else err.textContent=(await r.json().catch(()=>({}))).error||"That password is wrong."}
+  catch(_){err.textContent="Couldn't reach the server. Check your connection and try again."}
+  finally{btn.disabled=false}}
+function setSave(state){const el=$("save");if(!el)return;el.className="save "+state;
+  el.innerHTML=state==="saving"?"Saving…":state==="saved"?"✓ Saved":state==="error"?`Not saved <button data-act="retry-save">Retry</button>`:"";
+  if(state==="saved"){clearTimeout(setSave.t);setSave.t=setTimeout(()=>{if(el.className==="save saved")el.innerHTML=""},2500)}}
+function schedulePersist(){if(MODE!=="live"||!saved)return;clearTimeout(persistT);persistT=setTimeout(persist,300)}
+function diffOps(){const ops=[];
+  for(const k of KINDS_LIST){const before=new Map(saved[k].map(x=>[x.id,JSON.stringify(x)])),now=new Set();
+    for(const x of S[k]){now.add(x.id);if(before.get(x.id)!==JSON.stringify(x))ops.push({op:"put",kind:k,id:x.id,data:x})}
+    for(const id of before.keys())if(!now.has(id))ops.push({op:"del",kind:k,id})}
+  return ops}
+async function persist(){
+  if(MODE!=="live"||!saved)return;
+  if(saving){again=true;return}
+  const ops=diffOps();if(!ops.length)return;
+  saving=true;setSave("saving");const next=snapshot();
+  try{const r=await fetch("/api/data",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ops})});
+    if(r.status===401){setSave("error");showLogin("You were signed out. Sign in again and your last change will be saved.");return}
+    if(!r.ok)throw new Error("save failed");
+    saved=next;setSave("saved")}
+  catch(_){setSave("error")}
+  finally{saving=false;if(again){again=false;persist()}}}
+window.addEventListener("beforeunload",e=>{if(MODE==="live"&&saved&&diffOps().length){e.preventDefault();e.returnValue=""}});
+boot();
+</script></body>
 </html>
