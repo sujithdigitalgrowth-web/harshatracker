@@ -228,6 +228,14 @@ mark{background:#FFF0A8;color:inherit;border-radius:2px;padding:0 1px}
 .toast button:hover{background:rgba(255,255,255,.1)}
 .toast span:only-child{padding-right:8px}
 
+/* ---------- note box: Deadline option ---------- */
+.composer .dl-only{display:none;gap:8px;align-items:center;flex-wrap:wrap}
+.composer:has(input[name="kind"][value="deadline"]:checked) .dl-only{display:inline-flex}
+.composer:has(input[name="kind"][value="deadline"]:checked) .note-only{display:none}
+.composer .dl-only label{font-size:13px;color:var(--muted)}
+.composer .dl-only .field{width:auto;padding:6px 10px}
+.seg label.dl-opt:has(input:checked){background:var(--accent);color:#fff}
+
 /* ---------- deadlines page ---------- */
 .quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border:1px solid var(--line);border-radius:var(--r);padding:10px;background:var(--soft)}
 .quick:focus-within{border-color:var(--accent-line);background:var(--bg);box-shadow:0 0 0 4px var(--accent-soft)}
@@ -332,7 +340,7 @@ const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","De
 const fmt=s=>{if(!s)return"";const d=toD(s);return d.getDate()+" "+MON[d.getMonth()]};
 let t0=dstr(new Date());
 const diff=s=>Math.round((toD(s)-toD(t0))/864e5);
-const ago=s=>{const n=-diff(s);return n<=0?"today":n===1?"yesterday":n+" days ago"};
+const ago=s=>{const n=-diff(s);return n<0?"on "+fmt(s):n===0?"today":n===1?"yesterday":n+" days ago"};
 const agoShort=n=>n===null?"never":n===0?"today":n+"d";
 function countdown(s){if(!s)return["No date",""];const n=diff(s);if(n<0)return[(-n)+"d late","bad"];if(n===0)return["Today","warn"];if(n===1)return["Tomorrow","warn"];return["in "+n+"d",""]}
 const safeUrl=u=>{u=String(u||"").trim();if(!u)return"";if(!/^https?:\/\//i.test(u))u="https://"+u;return u};
@@ -392,7 +400,7 @@ const sortedClients=()=>S.clients.slice().sort((a,b)=>a.name.localeCompare(b.nam
 const agencyGroups=()=>S.agencies.slice().sort((a,b)=>a.name.localeCompare(b.name)).concat([{id:"",name:"Direct clients"}])
   .map(a=>({...a,clients:sortedClients().filter(c=>(c.agencyId||"")===a.id)}));
 const updatesOf=cid=>S.updates.filter(u=>u.clientId===cid).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
-const lastCheck=cid=>updatesOf(cid)[0]?.date||null;
+const lastCheck=cid=>{const l=updatesOf(cid)[0]?.date||null;return l&&l>t0?t0:l};
 const lastChange=cid=>updatesOf(cid).find(u=>u.kind==="change")||null;
 function freshness(c){const l=lastCheck(c.id);if(!l)return{cls:"bad",days:null,ratio:2};
   const days=-diff(l),ratio=days/(c.every||7);return{cls:ratio>1?"bad":ratio>=.7?"warn":"ok",days,ratio}}
@@ -419,7 +427,7 @@ function dlRow(t,showClient){const a=addedOf(t),p=priOf(t);
   <div class="grow"><div class="t ${t.done?"done":""}">${hl(t.title)}</div><div class="sub">${showClient?clientChip(t.clientId):""}${t.type&&t.type!=="other"?typeTag(t.type):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}${a?`<span>Added ${fmt(dstr(new Date(a)))}</span>`:""}</div></div>
   ${acts("edit-deadline","deadlines",t.id)}<span class="pri ${p}">${PRI[p]}</span>${dueCell(t)}</div>`}
 function noteItem(u,showClient){
-  return `<div class="note"><div class="hd"><span class="kind ${u.kind}">${KINDS[u.kind]||"Note"}</span>${showClient?clientChip(u.clientId):""}<span>${fmt(u.date)} · ${ago(u.date)}</span>${acts("edit-note","updates",u.id)}</div><p>${hl(u.text)}</p></div>`}
+  return `<div class="note"><div class="hd"><span class="kind ${u.kind}">${KINDS[u.kind]||"Note"}</span>${showClient?clientChip(u.clientId):""}<span>${fmt(u.date)} · ${ago(u.date)}</span><span class="acts"><button class="icon-btn" data-act="to-deadline" data-id="${u.id}" title="Move this to Deadlines">Make deadline</button></span>${acts("edit-note","updates",u.id)}</div><p>${hl(u.text)}</p></div>`}
 const favColor=u=>/docs\.google\.com\/spreadsheets/.test(u)?"#1E8E3E":/lookerstudio|datastudio/.test(u)?"#4A3FB0":/drive\.google/.test(u)?"#C58A00":/docs\.google/.test(u)?"#2459C9":"#626C7C";
 const favText=u=>/spreadsheets/.test(u)?"XLS":/lookerstudio|datastudio/.test(u)?"RPT":/drive\.google/.test(u)?"DRV":/docs\.google/.test(u)?"DOC":"URL";
 function linkRow(l,showClient){const u=safeUrl(l.url);
@@ -436,8 +444,10 @@ function composer(cid){
   return `<form class="composer" data-form="note" ${cid?`data-cid="${cid}"`:""}>
   <textarea name="text" rows="2" placeholder="${cid?"What happened with "+esc(clientName(cid))+"? A change you made, a call, anything to remember…":"Write a note: what you changed, what was said on a call, anything to remember…"}" required aria-label="Note"></textarea>
   <div class="bar">${cid?"":`<select class="field" name="clientId" required aria-label="Client">${clientOptions("","Which client?")}</select>`}
-  <span class="seg" role="radiogroup" aria-label="Type">${Object.entries(KINDS).map(([k,l])=>`<label><input type="radio" name="kind" value="${k}" ${k==="note"?"checked":""}>${l}</label>`).join("")}</span>
-  <span style="flex:1"></span><span class="hint hide-sm">Ctrl + Enter to save</span><button class="btn pri sm">Save note</button></div></form>`}
+  <span class="seg" role="radiogroup" aria-label="Type">${Object.entries(KINDS).map(([k,l])=>`<label><input type="radio" name="kind" value="${k}" ${k==="note"?"checked":""}>${l}</label>`).join("")}<label class="dl-opt"><input type="radio" name="kind" value="deadline">Deadline</label></span>
+  <span class="dl-only"><label for="cd-${cid||"x"}">Due</label><input class="field" id="cd-${cid||"x"}" type="date" name="due" min="${t0}">
+    <select class="field" name="priority" aria-label="Priority"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></span>
+  <span style="flex:1"></span><span class="hint hide-sm">Ctrl + Enter to save</span><button class="btn pri sm"><span class="note-only">Save note</span><span class="dl-only" style="gap:0">Add deadline</span></button></div></form>`}
 
 /* ---------- views ---------- */
 function vToday(){
@@ -576,7 +586,8 @@ function noteForm(u){M={k:"updates",id:u.id||null};
   modal(u.id?"Edit note":"New note",`<div class="f"><label for="f-client">Client</label><select class="field" id="f-client" name="clientId" required>${clientOptions(u.clientId)}</select></div>
   <div class="f"><span class="fl">Type</span><div class="pick">${Object.entries(KINDS).map(([k,l])=>`<label><input type="radio" name="kind" value="${k}" ${k===(u.kind||"note")?"checked":""}>${l}</label>`).join("")}</div></div>
   <div class="f"><label for="f-text">Note</label><textarea class="field" id="f-text" name="text" required ${u.clientId?"data-autofocus":""} placeholder="What you changed, what was said, anything to remember">${esc(u.text||"")}</textarea></div>
-  <div class="f" style="max-width:200px"><label for="f-date">Date</label><input class="field" id="f-date" type="date" name="date" value="${esc(u.date||t0)}"></div>`,"note-modal",{del:u.id?delInModal("updates",u.id,"note"):""})}
+  <div class="f" style="max-width:220px"><label for="f-date">When did this happen?</label><input class="field" id="f-date" type="date" name="date" max="${t0}" value="${esc(u.date&&u.date<=t0?u.date:t0)}"></div>
+  <p class="hint" style="margin:0">Something that needs doing by a date? <button type="button" class="btn sm ghost" data-act="note-to-deadline-form">Add it as a deadline instead</button></p>`,"note-modal",{del:u.id?delInModal("updates",u.id,"note"):""})}
 function deadlineForm(t){M={k:"deadlines",id:t.id||null};
   modal(t.id?"Edit deadline":"New deadline",`<div class="f"><label for="f-title">What's due</label><input class="field" id="f-title" name="title" required value="${esc(t.title||"")}" placeholder="Monthly report, campaign launch, creatives…"></div>
   <div class="fr"><div class="f"><label for="f-client">Client</label><select class="field" id="f-client" name="clientId" required>${clientOptions(t.clientId)}</select></div>
@@ -617,10 +628,15 @@ document.addEventListener("submit",e=>{
   const fd=new FormData(f),g=k=>String(fd.get(k)??"").trim(),kind=f.dataset.form;
   if(kind==="signin"){signIn(f,fd.get("password"));return}
   const upsert=(k,data,msg)=>{const ex=M&&M.id&&byId(S[k],M.id);if(ex)Object.assign(ex,data);else S[k].push({id:newId(),...data});closeModal();toast(ex?"Saved":msg);return ex};
-  if(kind==="note"){const cid=f.dataset.cid||g("clientId");S.updates.push({id:newId(),clientId:cid,kind:g("kind")||"note",date:t0,text:g("text")});toast("Note saved to "+clientName(cid));}
-  if(kind==="note-modal")upsert("updates",{clientId:g("clientId"),kind:g("kind")||"note",text:g("text"),date:g("date")||t0},"Note saved to "+clientName(g("clientId")));
-  if(kind==="deadline"){const ex=M&&M.id&&byId(S.deadlines,M.id);
-    upsert("deadlines",{title:g("title"),clientId:g("clientId"),date:g("date"),type:g("type")||"other",priority:g("priority")||"medium",repeat:g("repeat"),done:ex?ex.done:false,createdAt:ex?(ex.createdAt||addedOf(ex)):Date.now()},"Deadline added")}
+  if(kind==="note"){const cid=f.dataset.cid||g("clientId");
+    if(g("kind")==="deadline"){S.deadlines.push({id:newId(),clientId:cid,title:g("text"),date:g("due"),type:"other",priority:g("priority")||"medium",repeat:"",done:false,createdAt:Date.now()});
+      toast("Deadline added"+(g("due")?", due "+fmt(g("due")):"")+". It's on the Deadlines page.")}
+    else{S.updates.push({id:newId(),clientId:cid,kind:g("kind")||"note",date:t0,text:g("text")});toast("Note saved to "+clientName(cid))}}
+  if(kind==="note-modal")upsert("updates",{clientId:g("clientId"),kind:g("kind")||"note",text:g("text"),date:(g("date")&&g("date")<=t0)?g("date"):t0},"Note saved to "+clientName(g("clientId")));
+  if(kind==="deadline"){const ex=M&&M.id&&byId(S.deadlines,M.id),fromNote=M&&M.fromNote,snap=fromNote?snapshot():null;
+    if(fromNote){S.updates=S.updates.filter(u=>u.id!==fromNote)}
+    upsert("deadlines",{title:g("title"),clientId:g("clientId"),date:g("date"),type:g("type")||"other",priority:g("priority")||"medium",repeat:g("repeat"),done:ex?ex.done:false,createdAt:ex?(ex.createdAt||addedOf(ex)):Date.now()},"Deadline added");
+    if(fromNote)toast("Moved to Deadlines",snap)}
   if(kind==="quick-deadline"){S.deadlines.push({id:newId(),title:g("title"),clientId:g("clientId"),date:g("date"),type:"other",priority:g("priority")||"medium",repeat:"",done:false,createdAt:Date.now()});
     toast("Deadline added for "+clientName(g("clientId")));render();setTimeout(()=>{const x=document.querySelector('form[data-form="quick-deadline"] input[name="title"]');x&&x.focus()},0);return}
   if(kind==="client"){const data={name:g("name"),agencyId:g("agencyId"),every:+g("every")||7,platforms:fd.getAll("platforms")};
@@ -641,6 +657,10 @@ document.addEventListener("click",async e=>{
   else if(a==="day"){S.day=S.day===ds.k?null:ds.k;render()}
   else if(a==="week"){S.week=+ds.d===0?0:S.week+(+ds.d);S.day=null;render()}
   else if(a==="filter"){S.filter=ds.k;render()}
+  else if(a==="to-deadline"){const u=byId(S.updates,ds.id);if(!u)return;
+    deadlineForm({clientId:u.clientId,title:u.text.split("\n")[0],date:u.date>t0?u.date:"",priority:"medium"});M.fromNote=u.id}
+  else if(a==="note-to-deadline-form"){const f=document.querySelector("#modal form");const fd=new FormData(f);
+    deadlineForm({clientId:String(fd.get("clientId")||""),title:String(fd.get("text")||"").split("\n")[0]})}
   else if(a==="sort"){S.sort=ds.k;try{localStorage.setItem("ht-sort",ds.k)}catch(_){}render()}
   else if(a==="new-note")noteForm({clientId:ds.cid||here});
   else if(a==="edit-note")noteForm(byId(S.updates,ds.id));
