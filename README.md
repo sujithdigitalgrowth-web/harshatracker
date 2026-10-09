@@ -24,7 +24,7 @@ Opened without its server (for example as a local file), the page shows sample d
 
 ## Tabs
 
-- **Today**: a note box, a "needs your attention" list (late deadlines and clients you haven't checked in time), the week with arrows to move between weeks, and your recent notes.
+- **Deadlines**: add a deadline in one line (client, due date, priority). Open deadlines grouped by priority (or sorted by due date), with when each was added and its due date. The week strip filters by day. Clients you haven't checked in time are listed on the right.
 - **Clients**: grouped by agency. Each client page has a note box, the notes history (filter by changes, notes or calls), deadlines, links and logins.
 - **Links**: every sheet, report and folder, mapped to a client.
 - **Logins**: email IDs and passwords, grouped by client.

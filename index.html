@@ -228,6 +228,19 @@ mark{background:#FFF0A8;color:inherit;border-radius:2px;padding:0 1px}
 .toast button:hover{background:rgba(255,255,255,.1)}
 .toast span:only-child{padding-right:8px}
 
+/* ---------- deadlines page ---------- */
+.quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border:1px solid var(--line);border-radius:var(--r);padding:10px;background:var(--soft)}
+.quick:focus-within{border-color:var(--accent-line);background:var(--bg);box-shadow:0 0 0 4px var(--accent-soft)}
+.quick .field{width:auto}
+.quick .t-in{flex:1 1 260px}
+.pri{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap;background:var(--soft2);color:var(--muted)}
+.pri::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pri.high{background:var(--bad-soft);color:var(--bad)}.pri.medium{background:var(--warn-soft);color:var(--warn)}.pri.low{background:var(--soft2);color:var(--muted)}
+.row.dl .due{min-width:150px;text-align:right;display:inline-flex;gap:6px;justify-content:flex-end;align-items:center}
+.row.dl .due .chip{font-family:var(--f-body)}
+.pri-h.high{color:var(--bad)}.pri-h.medium{color:var(--warn)}
+@media (max-width:640px){.row.dl{flex-wrap:wrap}.row.dl .due{min-width:0;text-align:left;justify-content:flex-start}}
+
 /* ---------- login & save status ---------- */
 .login-screen{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--soft)}
 .login-card{background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:32px 28px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 60px rgba(16,24,40,.08)}
@@ -300,6 +313,7 @@ const KINDS={note:"Note",change:"Change",call:"Call"};
 const EVERY={"1":"every day","2":"every 2 days","3":"every 3 days","7":"every week","14":"every 2 weeks","30":"every month"};
 const PLATFORMS=["Google Ads","Meta","GA4","Shopify","Amazon","LinkedIn"];
 const REPEAT={"":"Doesn't repeat",weekly:"Every week",monthly:"Every month"};
+const PRI={high:"High",medium:"Medium",low:"Low"},PRI_RANK={high:0,medium:1,low:2};
 const ICON={
   today:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2.5" y="3.5" width="13" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 7.5h13M6 2v3M12 2v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
   clients:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="7" cy="6.5" r="2.8" stroke="currentColor" stroke-width="1.5"/><path d="M2 15c.6-2.6 2.6-4 5-4s4.4 1.4 5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 4a2.5 2.5 0 010 5M13.5 11.3c1.3.5 2.2 1.7 2.5 3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
@@ -316,7 +330,7 @@ const addDays=(s,n)=>{const d=toD(s);d.setDate(d.getDate()+n);return dstr(d)};
 const addMonth=s=>{const d=toD(s),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+1);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return dstr(d)};
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],DAY=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const fmt=s=>{if(!s)return"";const d=toD(s);return d.getDate()+" "+MON[d.getMonth()]};
-const t0=dstr(new Date());
+let t0=dstr(new Date());
 const diff=s=>Math.round((toD(s)-toD(t0))/864e5);
 const ago=s=>{const n=-diff(s);return n<=0?"today":n===1?"yesterday":n+" days ago"};
 const agoShort=n=>n===null?"never":n===0?"today":n+"d";
@@ -328,7 +342,7 @@ const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const d=n=>addDays(t0,n);
 
 /* ---------- state ---------- */
-const S={view:"today",clientId:null,q:"",day:null,week:0,filter:"all",
+const S={view:"today",clientId:null,q:"",day:null,week:0,filter:"all",sort:"priority",
   agencies:[],clients:[],updates:[],deadlines:[],links:[],logins:[]};
 /* shown only when the page runs without its server (e.g. the claude.ai preview) */
 const sampleData=()=>({
@@ -350,14 +364,14 @@ const sampleData=()=>({
     {id:"u8",clientId:"c4",kind:"change",date:d(-16),text:"Added 120 negative keywords from search terms."},
     {id:"u9",clientId:"c5",kind:"note",date:d(-20),text:"Campaigns paused till November. Nothing running."}],
   deadlines:[
-    {id:"t1",clientId:"c1",title:"Monthly performance report",type:"report",date:d(-2),repeat:"monthly",done:false},
-    {id:"t2",clientId:"c2",title:"Weekly report",type:"report",date:d(1),repeat:"weekly",done:false},
-    {id:"t3",clientId:"c3",title:"Fix double-firing conversion tag",type:"optim",date:d(-1),repeat:"",done:false},
-    {id:"t4",clientId:"c1",title:"Diwali campaign goes live",type:"launch",date:d(4),repeat:"",done:false},
-    {id:"t5",clientId:"c1",title:"Diwali creatives approved",type:"creative",date:d(2),repeat:"",done:false},
-    {id:"t6",clientId:"c4",title:"Review call with Meera",type:"call",date:d(5),repeat:"",done:false},
-    {id:"t7",clientId:"c3",title:"Kick-off call",type:"call",date:d(2),repeat:"",done:false},
-    {id:"t8",clientId:"c4",title:"Fix Merchant Center disapprovals",type:"optim",date:d(9),repeat:"",done:false}],
+    {id:"t1",priority:"high",clientId:"c1",title:"Monthly performance report",type:"report",date:d(-2),repeat:"monthly",done:false},
+    {id:"t2",priority:"medium",clientId:"c2",title:"Weekly report",type:"report",date:d(1),repeat:"weekly",done:false},
+    {id:"t3",priority:"high",clientId:"c3",title:"Fix double-firing conversion tag",type:"optim",date:d(-1),repeat:"",done:false},
+    {id:"t4",priority:"high",clientId:"c1",title:"Diwali campaign goes live",type:"launch",date:d(4),repeat:"",done:false},
+    {id:"t5",priority:"medium",clientId:"c1",title:"Diwali creatives approved",type:"creative",date:d(2),repeat:"",done:false},
+    {id:"t6",priority:"low",clientId:"c4",title:"Review call with Meera",type:"call",date:d(5),repeat:"",done:false},
+    {id:"t7",priority:"medium",clientId:"c3",title:"Kick-off call",type:"call",date:d(2),repeat:"",done:false},
+    {id:"t8",priority:"low",clientId:"c4",title:"Fix Merchant Center disapprovals",type:"optim",date:d(9),repeat:"",done:false}],
   links:[
     {id:"l1",clientId:"c1",label:"Daily spend tracker",url:"https://docs.google.com/spreadsheets/d/kaveri-spend"},
     {id:"l2",clientId:"c1",label:"Monthly report",url:"https://lookerstudio.google.com/reporting/kaveri"},
@@ -391,10 +405,19 @@ const typeTag=k=>{const [l,v]=TYPES[k]||TYPES.other;return `<span class="type"><
 const clientChip=id=>id?`<button class="chip c" data-act="client" data-id="${id}">${esc(clientName(id))}</button>`:"";
 const acts=(edit,kind,id)=>`<span class="acts"><button class="icon-btn" data-act="${edit}" data-id="${id}" aria-label="Edit">Edit</button><button class="icon-btn danger" data-act="del" data-k="${kind}" data-id="${id}" aria-label="Delete">Delete</button></span>`;
 const empty=(title,body)=>`<div class="empty"><b>${title}</b>${body||""}</div>`;
-function dlRow(t,showClient){const [cd,cls]=t.done?["Done",""]:countdown(t.date);
-  return `<div class="row"><input type="checkbox" class="chk" data-act="toggle" data-id="${t.id}" ${t.done?"checked":""} aria-label="Mark ${esc(t.title)} done">
-  <div class="grow"><div class="t ${t.done?"done":""}">${hl(t.title)}</div><div class="sub">${typeTag(t.type)}${showClient?clientChip(t.clientId):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}</div></div>
-  ${acts("edit-deadline","deadlines",t.id)}<span class="due ${cls}">${cd}</span></div>`}
+/* when it was added: stored on new items; older ones carry it in their time-based id */
+const addedOf=t=>{if(t.createdAt)return t.createdAt;const n=parseInt(String(t.id).slice(0,8),36);return n>1.5e12&&n<4e12?n:null};
+const priOf=t=>PRI[t.priority]?t.priority:"medium";
+function dueCell(t){
+  if(!t.date)return `<span class="due muted">No due date</span>`;
+  const n=diff(t.date),dt=toD(t.date),yr=dt.getFullYear()!==new Date().getFullYear()?" "+dt.getFullYear():"";
+  const cls=t.done?"":n<0?"bad":n===0?"warn":"";
+  const tag=t.done?"":n<0?`<span class="chip bad">Late</span>`:n===0?`<span class="chip warn">Today</span>`:"";
+  return `<span class="due ${cls}">Due ${DAY[dt.getDay()]}, ${fmt(t.date)}${yr}${tag}</span>`}
+function dlRow(t,showClient){const a=addedOf(t),p=priOf(t);
+  return `<div class="row dl"><input type="checkbox" class="chk" data-act="toggle" data-id="${t.id}" ${t.done?"checked":""} aria-label="Mark ${esc(t.title)} done">
+  <div class="grow"><div class="t ${t.done?"done":""}">${hl(t.title)}</div><div class="sub">${showClient?clientChip(t.clientId):""}${t.type&&t.type!=="other"?typeTag(t.type):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}${a?`<span>Added ${fmt(dstr(new Date(a)))}</span>`:""}</div></div>
+  ${acts("edit-deadline","deadlines",t.id)}<span class="pri ${p}">${PRI[p]}</span>${dueCell(t)}</div>`}
 function noteItem(u,showClient){
   return `<div class="note"><div class="hd"><span class="kind ${u.kind}">${KINDS[u.kind]||"Note"}</span>${showClient?clientChip(u.clientId):""}<span>${fmt(u.date)} · ${ago(u.date)}</span>${acts("edit-note","updates",u.id)}</div><p>${hl(u.text)}</p></div>`}
 const favColor=u=>/docs\.google\.com\/spreadsheets/.test(u)?"#1E8E3E":/lookerstudio|datastudio/.test(u)?"#4A3FB0":/drive\.google/.test(u)?"#C58A00":/docs\.google/.test(u)?"#2459C9":"#626C7C";
@@ -419,44 +442,49 @@ function composer(cid){
 /* ---------- views ---------- */
 function vToday(){
   const h=new Date().getHours(),greet=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
-  if(!S.clients.length)return `<div class="hello"><div><h1>${greet}, Harsha</h1><p class="lead">${new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</p></div></div>
+  const dateLine=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
+  if(!S.clients.length)return `<div class="hello"><div><h1>${greet}, Harsha</h1><p class="lead">${dateLine}</p></div></div>
   <div class="welcome"><h2 style="font-size:20px">Let's set up your tracker</h2>
   <ol><li>Add the agencies you work through, like MGC.</li><li>Add the clients you handle under each one (or as direct clients).</li><li>Then save notes, deadlines, links and logins for each client.</li></ol>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="new-agency">+ Add an agency</button><button class="btn" data-act="new-client">+ Add a client</button></div></div>`;
-  const lt=late(),st=stale(),o=open();
-  const attention=lt.map(t=>({kind:"late",t})).concat(st.map(c=>({kind:"stale",c})));
-  const attHtml=attention.length?`<div class="list">${attention.map(a=>{
-    if(a.kind==="late")return dlRow(a.t,true).replace('<div class="row">','<div class="row att">');
-    const f=freshness(a.c);
-    return `<div class="row att"><span class="ic warn" aria-hidden="true">◷</span><div class="grow"><div class="t">${esc(a.c.name)}</div>
-    <div class="sub">${f.days===null?"Never checked":"Last checked "+f.days+" days ago"} · you check it ${esc(EVERY[a.c.every]||"every week")}</div></div>
-    <button class="btn sm" data-act="new-note" data-cid="${a.c.id}">Add note</button></div>`}).join("")}</div>`:empty("All clear","Nothing late, and every client has been checked on time.");
-  // week strip
-  const start=d(S.week*7),days=[0,1,2,3,4,5,6].map(i=>addDays(start,i));
-  const withLate=S.week===0;
-  const cells=(withLate?[{k:"late",dn:"Late",dd:lt.length,items:lt,late:true}]:[]).concat(days.map(s=>({k:s,dn:s===t0?"Today":DAY[toD(s).getDay()],dd:toD(s).getDate(),items:o.filter(t=>t.date===s),today:s===t0})));
-  const label=S.week===0?"This week":S.week===1?"Next week":S.week===-1?"Last week":fmt(days[0])+" – "+fmt(days[6]);
+  const lt=late(),st=stale(),o=open(),highN=o.filter(t=>priOf(t)==="high").length;
+  // week strip (filters the list below)
+  const start=d(S.week*7),days=[0,1,2,3,4,5,6].map(i=>addDays(start,i)),withLate=S.week===0;
+  const cells=(withLate?[{k:"late",dn:"Late",dd:lt.length,items:lt,late:true}]:[]).concat(days.map(x=>({k:x,dn:x===t0?"Today":DAY[toD(x).getDay()],dd:toD(x).getDate(),items:o.filter(t=>t.date===x),today:x===t0})));
+  const wlabel=S.week===0?"This week":S.week===1?"Next week":S.week===-1?"Last week":fmt(days[0])+" – "+fmt(days[6]);
   const sel=S.day&&cells.find(c=>c.k===S.day);
-  let wl;
-  if(sel)wl=`<div class="list">${sel.items.map(t=>dlRow(t,true)).join("")||empty("Nothing due","")}</div>`;
-  else{const groups=days.map(s=>[s,o.filter(t=>t.date===s)]).filter(([,ts])=>ts.length);
-    wl=groups.length?`<div class="list">${groups.map(([s,ts])=>`<div class="dayhead ${s===t0?"today":""}"><span>${s===t0?"Today":DAY[toD(s).getDay()]+" "+fmt(s)}</span><span>${ts.length}</span></div>${ts.map(t=>dlRow(t,true)).join("")}`).join("")}</div>`
-      :empty("Nothing due "+label.toLowerCase(),`<div style="margin-top:8px"><button class="btn sm" data-act="new-deadline">+ Add a deadline</button></div>`)}
-  const feed=S.updates.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,8);
-  return `<div class="hello"><div><h1>${greet}, Harsha</h1><p class="lead">${new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</p></div>
-  <div class="stats"><span class="stat ${lt.length?"bad":""}"><b>${lt.length}</b> late</span><span class="stat"><b>${o.filter(t=>t.date===t0).length}</b> due today</span><span class="stat ${st.length?"bad":""}"><b>${st.length}</b> not checked</span></div></div>
-  ${composer("")}
-  <div class="cols"><div class="sec" style="gap:28px">
-    <div class="panel"><div class="panel-h"><h2>Needs your attention</h2><span class="chip ${attention.length?"bad":"ok"}">${attention.length||"0"}</span></div>${attHtml}</div>
-    <div class="panel"><div class="panel-h weekbar"><h2>${label}</h2><span style="display:flex;gap:4px">
-      <button class="icon-btn" data-act="week" data-d="-1" aria-label="Previous week">‹</button>${S.week?`<button class="btn sm ghost" data-act="week" data-d="0">Today</button>`:""}<button class="icon-btn" data-act="week" data-d="1" aria-label="Next week">›</button></span></div>
-      <div style="padding:12px 16px;border-bottom:1px solid var(--line)"><div class="week ${withLate?"with-late":""}">${cells.map(x=>`<button class="day ${x.late?"late":""} ${x.today?"today":""} ${S.day===x.k?"on":""}" data-act="day" data-k="${x.k}" aria-pressed="${S.day===x.k}">
+  const list=sel?sel.items:o;
+  const byDue=(a,b)=>(a.date||"9999").localeCompare(b.date||"9999");
+  let body;
+  if(!list.length)body=empty(sel?"Nothing due that day":"No open deadlines",sel?"":"Add one in the box above.");
+  else if(S.sort==="due")body=`<div class="list">${list.slice().sort((a,b)=>byDue(a,b)||PRI_RANK[priOf(a)]-PRI_RANK[priOf(b)]).map(t=>dlRow(t,true)).join("")}</div>`;
+  else body=["high","medium","low"].map(p=>{const ts=list.filter(t=>priOf(t)===p).sort(byDue);
+    return ts.length?`<div class="dayhead pri-h ${p}"><span>${PRI[p]} priority</span><span>${ts.length}</span></div><div class="list">${ts.map(t=>dlRow(t,true)).join("")}</div>`:""}).join("");
+  const doneList=S.deadlines.filter(t=>t.done).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,15);
+  return `<div class="hello"><div><h1>Deadlines</h1><p class="lead">${greet}, Harsha · ${dateLine}</p></div>
+  <div class="stats"><span class="stat ${lt.length?"bad":""}"><b>${lt.length}</b> late</span><span class="stat"><b>${o.filter(t=>t.date===t0).length}</b> due today</span><span class="stat ${highN?"bad":""}"><b>${highN}</b> high priority</span><span class="stat"><b>${o.length}</b> open</span></div></div>
+  <form class="quick" data-form="quick-deadline" autocomplete="off">
+    <input class="field t-in" name="title" placeholder="Add a deadline: what needs to be done?" required aria-label="What needs to be done">
+    <select class="field" name="clientId" required aria-label="Client">${clientOptions(S.view==="client"?S.clientId:"","Client…")}</select>
+    <input class="field" type="date" name="date" aria-label="Due date" title="Due date">
+    <select class="field" name="priority" aria-label="Priority"><option value="high">High priority</option><option value="medium" selected>Medium priority</option><option value="low">Low priority</option></select>
+    <button class="btn pri">Add</button></form>
+  <div class="cols"><div class="panel">
+    <div class="panel-h"><h2>${sel?(sel.late?"Late":sel.today?"Due today":"Due "+DAY[toD(sel.k).getDay()]+", "+fmt(sel.k)):"Open deadlines"} <span class="muted mono" style="font-size:13px">${list.length}</span></h2>
+      <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${sel?`<button class="btn sm ghost" data-act="day" data-k="${sel.k}">Show all</button>`:""}
+      <span class="ftabs" role="group" aria-label="Sort">${[["priority","By priority"],["due","By due date"]].map(([k,l])=>`<button class="ftab ${S.sort===k?"on":""}" data-act="sort" data-k="${k}" aria-pressed="${S.sort===k}">${l}</button>`).join("")}</span></span></div>
+    <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px">
+      <div class="weekbar"><span class="eyebrow">${wlabel}</span><span style="display:flex;gap:4px"><button class="icon-btn" data-act="week" data-d="-1" aria-label="Previous week">‹</button>${S.week?`<button class="btn sm ghost" data-act="week" data-d="0">This week</button>`:""}<button class="icon-btn" data-act="week" data-d="1" aria-label="Next week">›</button></span></div>
+      <div class="week ${withLate?"with-late":""}">${cells.map(x=>`<button class="day ${x.late?"late":""} ${x.today?"today":""} ${S.day===x.k?"on":""}" data-act="day" data-k="${x.k}" aria-pressed="${S.day===x.k}">
         <span class="dn"><span>${x.dn}</span>${x.late?"":`<span>${x.items.length||""}</span>`}</span><span class="dd">${x.dd}</span>
-        <span class="bars">${x.items.slice(0,5).map(t=>`<i style="background:var(${(TYPES[t.type]||TYPES.other)[1]})"></i>`).join("")}</span></button>`).join("")}</div>
-        ${sel?`<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center"><span class="eyebrow">${sel.late?"Late":sel.today?"Today":DAY[toD(sel.k).getDay()]+" "+fmt(sel.k)}</span><button class="btn sm ghost" data-act="day" data-k="${sel.k}">Show whole week</button></div>`:""}</div>
-      ${wl}</div>
+        <span class="bars">${x.items.slice(0,5).map(t=>`<i style="background:var(${priOf(t)==="high"?"--bad":priOf(t)==="medium"?"--warn":"--t-other"})"></i>`).join("")}</span></button>`).join("")}</div></div>
+    ${body}
+    ${doneList.length&&!sel?`<details style="padding:10px 16px;border-top:1px solid var(--line)"><summary class="muted" style="cursor:pointer;font-size:13px">Done (${S.deadlines.filter(t=>t.done).length})</summary><div class="list">${doneList.map(t=>dlRow(t,true)).join("")}</div></details>`:""}
   </div>
-  <div class="panel feed"><div class="panel-h"><h2>Recent notes</h2></div><div class="list">${feed.map(u=>noteItem(u,true)).join("")||empty("No notes yet","Write your first one above.")}</div></div></div>`}
+  <div class="panel"><div class="panel-h"><h2>Clients to check</h2><span class="chip ${st.length?"bad":"ok"}">${st.length}</span></div>
+    ${st.length?`<div class="list">${st.map(c=>{const f=freshness(c);return `<div class="row"><span class="dot bad"></span><div class="grow"><button class="back" style="color:var(--ink)" data-act="client" data-id="${c.id}">${esc(c.name)}</button>
+      <div class="sub">${f.days===null?"No notes yet":"Last note "+f.days+" days ago"} · check ${esc(EVERY[c.every]||"every week")}</div></div><button class="btn sm" data-act="new-note" data-cid="${c.id}">Add note</button></div>`}).join("")}</div>`
+      :empty("All checked","Every client has a note within its check-in gap.")}</div></div>`}
 function vClients(){
   return `<div class="ch"><div><h1>Clients</h1><p class="lead">${S.clients.length} clients across ${S.agencies.length} agencies. Red dot means it's been too long since you checked.</p></div>
   <div style="display:flex;gap:8px"><button class="btn" data-act="new-agency">+ Agency</button><button class="btn pri" data-act="new-client">+ Client</button></div></div>
@@ -467,7 +495,7 @@ function vClients(){
       return `<button class="card" data-act="client" data-id="${c.id}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="nm">${esc(c.name)}</span>
       <span class="chip ${f.cls}"><span class="dot ${f.cls}"></span>${f.days===null?"Never checked":f.days===0?"Checked today":"Checked "+f.days+"d ago"}</span></div>
       <div class="ln"><span>Last change</span><span>${lc?esc(lc.text.split("\n")[0]):"None logged"}</span></div>
-      <div class="ln"><span>Next deadline</span><span>${nx?esc(nx.title)+" · "+countdown(nx.date)[0]:"None"}</span></div>
+      <div class="ln"><span>Next deadline</span><span>${nx?esc(nx.title)+(nx.date?" · due "+fmt(nx.date):""):"None"}</span></div>
       <div class="ft"><span>${S.links.filter(l=>l.clientId===c.id).length} links</span><span>${S.logins.filter(g=>g.clientId===c.id).length} logins</span><span>${(c.platforms||[]).join(", ")}</span></div></button>`}).join("")}</div>`
       :`<div class="panel">${empty("No clients yet",`<div style="margin-top:8px"><button class="btn sm" data-act="new-client" data-agency="${a.id}">+ Add a client to ${esc(a.name)}</button></div>`)}</div>`}</div>`}).join("")}`}
 function vClient(){
@@ -522,8 +550,9 @@ function vSearch(){
   ${!total?`<div class="panel">${empty("No matches","Try a client name, part of an email, or a word from a note.")}</div>`:""}`}
 
 function render(){
+  t0=dstr(new Date());
   const cur=S.q?"":S.view==="client"?"clients":S.view,lt=late().length;
-  const items=[["today","Today",lt?`<span class="n bad">${lt}</span>`:""],["clients","Clients",`<span class="n">${S.clients.length}</span>`],["links","Links",`<span class="n">${S.links.length}</span>`],["logins","Logins",`<span class="n">${S.logins.length}</span>`]];
+  const items=[["today","Deadlines",lt?`<span class="n bad">${lt}</span>`:""],["clients","Clients",`<span class="n">${S.clients.length}</span>`],["links","Links",`<span class="n">${S.links.length}</span>`],["logins","Logins",`<span class="n">${S.logins.length}</span>`]];
   document.getElementById("side").innerHTML=`<div class="brand"><span class="logo">H</span><span><b>Harsha</b><small>Client tracker</small></span></div>
   <nav class="nav" aria-label="Sections">${items.map(([k,l,n])=>`<button class="nb ${cur===k?"on":""}" data-act="nav" data-v="${k}" ${cur===k?'aria-current="page"':""}>${ICON[k]}${l}${n}</button>`).join("")}</nav>
   <div class="tree"><div class="tree-h"><span>Your clients</span><button class="icon-btn" data-act="new-client" aria-label="Add client">+</button></div>
@@ -552,7 +581,8 @@ function deadlineForm(t){M={k:"deadlines",id:t.id||null};
   modal(t.id?"Edit deadline":"New deadline",`<div class="f"><label for="f-title">What's due</label><input class="field" id="f-title" name="title" required value="${esc(t.title||"")}" placeholder="Monthly report, campaign launch, creatives…"></div>
   <div class="fr"><div class="f"><label for="f-client">Client</label><select class="field" id="f-client" name="clientId" required>${clientOptions(t.clientId)}</select></div>
   <div class="f"><label for="f-date">Due date</label><input class="field" id="f-date" type="date" name="date" value="${esc(t.date||t0)}"></div></div>
-  <div class="f"><span class="fl">Type</span><div class="pick">${Object.entries(TYPES).map(([k,[l,v]])=>`<label><input type="radio" name="type" value="${k}" ${k===(t.type||"report")?"checked":""}><i style="background:var(${v})"></i>${l}</label>`).join("")}</div></div>
+  <div class="f"><span class="fl">Type</span><div class="pick">${Object.entries(TYPES).map(([k,[l,v]])=>`<label><input type="radio" name="type" value="${k}" ${k===(t.type||"other")?"checked":""}><i style="background:var(${v})"></i>${l}</label>`).join("")}</div></div>
+  <div class="f"><span class="fl">Priority</span><div class="pick">${Object.entries(PRI).map(([k,l])=>`<label><input type="radio" name="priority" value="${k}" ${k===priOf(t)?"checked":""}>${l}</label>`).join("")}</div></div>
   <div class="f"><span class="fl">Repeats</span><div class="pick">${Object.entries(REPEAT).map(([k,l])=>`<label><input type="radio" name="repeat" value="${k}" ${k===(t.repeat||"")?"checked":""}>${l}</label>`).join("")}</div>
   <span class="hint">A repeating deadline adds the next one when you tick it off.</span></div>`,"deadline",{del:t.id?delInModal("deadlines",t.id,"deadline"):""})}
 function clientForm(c){M={k:"clients",id:c.id||null};
@@ -589,7 +619,10 @@ document.addEventListener("submit",e=>{
   const upsert=(k,data,msg)=>{const ex=M&&M.id&&byId(S[k],M.id);if(ex)Object.assign(ex,data);else S[k].push({id:newId(),...data});closeModal();toast(ex?"Saved":msg);return ex};
   if(kind==="note"){const cid=f.dataset.cid||g("clientId");S.updates.push({id:newId(),clientId:cid,kind:g("kind")||"note",date:t0,text:g("text")});toast("Note saved to "+clientName(cid));}
   if(kind==="note-modal")upsert("updates",{clientId:g("clientId"),kind:g("kind")||"note",text:g("text"),date:g("date")||t0},"Note saved to "+clientName(g("clientId")));
-  if(kind==="deadline")upsert("deadlines",{title:g("title"),clientId:g("clientId"),date:g("date"),type:g("type")||"other",repeat:g("repeat"),done:M&&M.id?byId(S.deadlines,M.id).done:false},"Deadline added");
+  if(kind==="deadline"){const ex=M&&M.id&&byId(S.deadlines,M.id);
+    upsert("deadlines",{title:g("title"),clientId:g("clientId"),date:g("date"),type:g("type")||"other",priority:g("priority")||"medium",repeat:g("repeat"),done:ex?ex.done:false,createdAt:ex?(ex.createdAt||addedOf(ex)):Date.now()},"Deadline added")}
+  if(kind==="quick-deadline"){S.deadlines.push({id:newId(),title:g("title"),clientId:g("clientId"),date:g("date"),type:"other",priority:g("priority")||"medium",repeat:"",done:false,createdAt:Date.now()});
+    toast("Deadline added for "+clientName(g("clientId")));render();setTimeout(()=>{const x=document.querySelector('form[data-form="quick-deadline"] input[name="title"]');x&&x.focus()},0);return}
   if(kind==="client"){const data={name:g("name"),agencyId:g("agencyId"),every:+g("every")||7,platforms:fd.getAll("platforms")};
     if(M&&M.id){upsert("clients",data,"")}else{const id=newId();S.clients.push({id,...data});closeModal();go("client",id);toast("Client added. Add a note, link or login below.");return}}
   if(kind==="agency")upsert("agencies",{name:g("name")},"Agency added");
@@ -608,6 +641,7 @@ document.addEventListener("click",async e=>{
   else if(a==="day"){S.day=S.day===ds.k?null:ds.k;render()}
   else if(a==="week"){S.week=+ds.d===0?0:S.week+(+ds.d);S.day=null;render()}
   else if(a==="filter"){S.filter=ds.k;render()}
+  else if(a==="sort"){S.sort=ds.k;try{localStorage.setItem("ht-sort",ds.k)}catch(_){}render()}
   else if(a==="new-note")noteForm({clientId:ds.cid||here});
   else if(a==="edit-note")noteForm(byId(S.updates,ds.id));
   else if(a==="new-deadline")deadlineForm({clientId:ds.cid||here});
@@ -622,7 +656,7 @@ document.addEventListener("click",async e=>{
   else if(a==="edit-login")loginForm(byId(S.logins,ds.id));
   else if(a==="toggle"){const t=byId(S.deadlines,ds.id);const snap=snapshot();t.done=!t.done;
     if(t.done&&t.repeat&&!t.spawned&&t.date){const next=t.repeat==="weekly"?addDays(t.date,7):addMonth(t.date);t.spawned=true;
-      S.deadlines.push({id:newId(),clientId:t.clientId,title:t.title,type:t.type,repeat:t.repeat,date:next,done:false});toast("Done. Next one is on "+fmt(next),snap)}
+      S.deadlines.push({id:newId(),clientId:t.clientId,title:t.title,type:t.type,priority:priOf(t),repeat:t.repeat,date:next,done:false,createdAt:Date.now()});toast("Done. Next one is on "+fmt(next),snap)}
     else toast(t.done?"Marked done":"Marked not done",t.done?snap:null);render()}
   else if(a==="copy"){try{await navigator.clipboard.writeText(ds.text);toast("Copied")}catch(_){toast("Couldn't copy. Select the text instead.")}}
   else if(a==="del"){const k=ds.k,id=ds.id,snap=snapshot();const name={updates:"Note",deadlines:"Deadline",links:"Link",logins:"Login",clients:"Client",agencies:"Agency"}[k];
@@ -644,6 +678,9 @@ document.addEventListener("keydown",e=>{
     if(e.key==="/"){e.preventDefault();q.focus()}
     else if(e.key==="n"||e.key==="N"){e.preventDefault();noteForm({clientId:S.view==="client"?S.clientId:""})}}
 });
+try{const v=localStorage.getItem("ht-sort");if(v==="due"||v==="priority")S.sort=v}catch(_){}
+setInterval(()=>{if(dstr(new Date())!==t0&&!document.getElementById("app").hidden&&!document.querySelector("#modal .overlay"))render()},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&dstr(new Date())!==t0&&!document.getElementById("app").hidden)render()});
 /* ---------- loading & saving ---------- */
 const KINDS_LIST=["agencies","clients","updates","deadlines","links","logins"];
 let MODE="loading",saved=null,saving=false,again=false,persistT=null;
