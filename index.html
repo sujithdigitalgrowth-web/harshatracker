@@ -244,10 +244,16 @@ mark{background:#FFF0A8;color:inherit;border-radius:2px;padding:0 1px}
 .pri{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap;background:var(--soft2);color:var(--muted)}
 .pri::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .pri.high{background:var(--bad-soft);color:var(--bad)}.pri.medium{background:var(--warn-soft);color:var(--warn)}.pri.low{background:var(--soft2);color:var(--muted)}
-.row.dl .due{min-width:150px;text-align:right;display:inline-flex;gap:6px;justify-content:flex-end;align-items:center}
-.row.dl .due .chip{font-family:var(--f-body)}
+.row.dl{align-items:flex-start}
+.row.dl .chk{margin-top:2px}
+.row.dl .line1{display:flex;gap:8px;align-items:flex-start}
+.row.dl .line1 .t{flex:1;min-width:0}
+.row.dl .line1 .acts{flex:none;margin-top:-4px}
+.row.dl .sub{margin-top:6px;gap:8px}
+.row.dl .due{font:500 13px var(--f-body);display:inline-flex;gap:6px;align-items:center;color:var(--ink)}
+.row.dl .due.bad{color:var(--bad)}.row.dl .due.warn{color:var(--warn)}
+.row.dl .sep{color:var(--line)}
 .pri-h.high{color:var(--bad)}.pri-h.medium{color:var(--warn)}
-@media (max-width:640px){.row.dl{flex-wrap:wrap}.row.dl .due{min-width:0;text-align:left;justify-content:flex-start}}
 
 /* ---------- login & save status ---------- */
 .login-screen{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--soft)}
@@ -424,8 +430,8 @@ function dueCell(t){
   return `<span class="due ${cls}">Due ${DAY[dt.getDay()]}, ${fmt(t.date)}${yr}${tag}</span>`}
 function dlRow(t,showClient){const a=addedOf(t),p=priOf(t);
   return `<div class="row dl"><input type="checkbox" class="chk" data-act="toggle" data-id="${t.id}" ${t.done?"checked":""} aria-label="Mark ${esc(t.title)} done">
-  <div class="grow"><div class="t ${t.done?"done":""}">${hl(t.title)}</div><div class="sub">${showClient?clientChip(t.clientId):""}${t.type&&t.type!=="other"?typeTag(t.type):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}${a?`<span>Added ${fmt(dstr(new Date(a)))}</span>`:""}</div></div>
-  ${acts("edit-deadline","deadlines",t.id)}<span class="pri ${p}">${PRI[p]}</span>${dueCell(t)}</div>`}
+  <div class="grow"><div class="line1"><div class="t ${t.done?"done":""}">${hl(t.title)}</div></div>
+  <div class="sub"><span class="pri ${p}">${PRI[p]}</span>${dueCell(t)}${showClient?clientChip(t.clientId):""}${t.type&&t.type!=="other"?typeTag(t.type):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}${a?`<span class="sep">·</span><span>Added ${fmt(dstr(new Date(a)))}</span>`:""}<span style="margin-left:auto">${acts("edit-deadline","deadlines",t.id)}</span></div></div></div>`}
 function noteItem(u,showClient){
   return `<div class="note"><div class="hd"><span class="kind ${u.kind}">${KINDS[u.kind]||"Note"}</span>${showClient?clientChip(u.clientId):""}<span>${fmt(u.date)} · ${ago(u.date)}</span><span class="acts"><button class="icon-btn" data-act="to-deadline" data-id="${u.id}" title="Move this to Deadlines">Make deadline</button></span>${acts("edit-note","updates",u.id)}</div><p>${hl(u.text)}</p></div>`}
 const favColor=u=>/docs\.google\.com\/spreadsheets/.test(u)?"#1E8E3E":/lookerstudio|datastudio/.test(u)?"#4A3FB0":/drive\.google/.test(u)?"#C58A00":/docs\.google/.test(u)?"#2459C9":"#626C7C";
