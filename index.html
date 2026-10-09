@@ -253,6 +253,10 @@ mark{background:#FFF0A8;color:inherit;border-radius:2px;padding:0 1px}
 .row.dl .due{font:500 13px var(--f-body);display:inline-flex;gap:6px;align-items:center;color:var(--ink)}
 .row.dl .due.bad{color:var(--bad)}.row.dl .due.warn{color:var(--warn)}
 .row.dl .sep{color:var(--line)}
+.dl-acts{margin-left:auto;display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn.done-btn{color:var(--ok);border-color:#BFE0CB}
+.btn.done-btn:hover{background:var(--ok-soft)}
+.btn.ext-btn{color:var(--muted)}
 .pri-h.high{color:var(--bad)}.pri-h.medium{color:var(--warn)}
 
 /* ---------- login & save status ---------- */
@@ -431,7 +435,8 @@ function dueCell(t){
 function dlRow(t,showClient){const a=addedOf(t),p=priOf(t);
   return `<div class="row dl"><input type="checkbox" class="chk" data-act="toggle" data-id="${t.id}" ${t.done?"checked":""} aria-label="Mark ${esc(t.title)} done">
   <div class="grow"><div class="line1"><div class="t ${t.done?"done":""}">${hl(t.title)}</div></div>
-  <div class="sub"><span class="pri ${p}">${PRI[p]}</span>${dueCell(t)}${showClient?clientChip(t.clientId):""}${t.type&&t.type!=="other"?typeTag(t.type):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}${a?`<span class="sep">·</span><span>Added ${fmt(dstr(new Date(a)))}</span>`:""}<span style="margin-left:auto">${acts("edit-deadline","deadlines",t.id)}</span></div></div></div>`}
+  <div class="sub"><span class="pri ${p}">${PRI[p]}</span>${dueCell(t)}${showClient?clientChip(t.clientId):""}${t.type&&t.type!=="other"?typeTag(t.type):""}${t.repeat?`<span>↻ ${t.repeat==="weekly"?"weekly":"monthly"}</span>`:""}${a?`<span class="sep">·</span><span>Added ${fmt(dstr(new Date(a)))}</span>`:""}${t.pushed?`<span class="chip warn" title="Times the due date was moved">↷ moved ${t.pushed}×</span>`:""}
+  <span class="dl-acts">${acts("edit-deadline","deadlines",t.id)}${t.done?"":`<button class="btn sm ext-btn" data-act="extend" data-id="${t.id}" title="Move the due date one day later">+1 day</button><button class="btn sm done-btn" data-act="toggle" data-id="${t.id}">✓ Done</button>`}</span></div></div></div>`}
 function noteItem(u,showClient){
   return `<div class="note"><div class="hd"><span class="kind ${u.kind}">${KINDS[u.kind]||"Note"}</span>${showClient?clientChip(u.clientId):""}<span>${fmt(u.date)} · ${ago(u.date)}</span><span class="acts"><button class="icon-btn" data-act="to-deadline" data-id="${u.id}" title="Move this to Deadlines">Make deadline</button></span>${acts("edit-note","updates",u.id)}</div><p>${hl(u.text)}</p></div>`}
 const favColor=u=>/docs\.google\.com\/spreadsheets/.test(u)?"#1E8E3E":/lookerstudio|datastudio/.test(u)?"#4A3FB0":/drive\.google/.test(u)?"#C58A00":/docs\.google/.test(u)?"#2459C9":"#626C7C";
@@ -667,6 +672,9 @@ document.addEventListener("click",async e=>{
     deadlineForm({clientId:u.clientId,title:u.text.split("\n")[0],date:u.date>t0?u.date:"",priority:"medium"});M.fromNote=u.id}
   else if(a==="note-to-deadline-form"){const f=document.querySelector("#modal form");const fd=new FormData(f);
     deadlineForm({clientId:String(fd.get("clientId")||""),title:String(fd.get("text")||"").split("\n")[0]})}
+  else if(a==="extend"){const t=byId(S.deadlines,ds.id);if(!t)return;const snap=snapshot();
+    const base=!t.date||t.date<t0?t0:t.date;t.date=addDays(base,1);t.pushed=(t.pushed||0)+1;
+    toast("Moved to "+DAY[toD(t.date).getDay()]+", "+fmt(t.date),snap);render()}
   else if(a==="sort"){S.sort=ds.k;try{localStorage.setItem("ht-sort",ds.k)}catch(_){}render()}
   else if(a==="new-note")noteForm({clientId:ds.cid||here});
   else if(a==="edit-note")noteForm(byId(S.updates,ds.id));
